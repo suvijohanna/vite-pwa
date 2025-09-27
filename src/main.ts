@@ -1,7 +1,8 @@
 import {pwaInfo} from 'virtual:pwa-info';
 import {fetchData} from './functions';
-// import {UpdateResult} from './interfaces/UpdateResult';
+import {UpdateResult} from './interfaces/UpdateResult';
 import {UploadResult} from './interfaces/UploadResult';
+import { UpdateUser } from './interfaces/UpdateUser';
 import {LoginUser, User} from './interfaces/User';
 import {apiUrl, uploadUrl} from './variables';
 import {registerSW} from 'virtual:pwa-register';
@@ -12,15 +13,15 @@ console.log(pwaInfo);
 const updateSW = registerSW({
   immediate: true,
   onNeedRefresh() {
-    console.log('on need refesh tapahtui');
-    const update = confirm('Haluutko uuren version?');
+    console.log('on need refresh tapahtui');
+    const update = confirm('Haluatko uuden version?');
     if (update) {
       updateSW(true);
     }
   },
   onOfflineReady() {
-    console.log('sovellus on offline redi');
-    alert('sovellus on offline redi');
+    console.log('sovellus on offline valmis');
+    alert('sovellus on offline valmis');
   },
 });
 
@@ -43,16 +44,15 @@ const passwordInput = document.querySelector(
   '#password'
 ) as HTMLInputElement | null;
 
-// const profileUsernameInput = document.querySelector(
-//   '#profile-username'
-// ) as HTMLInputElement | null;
-// const profileEmailInput = document.querySelector(
-//   '#profile-email'
-// ) as HTMLInputElement | null;
-
-// const avatarInput = document.querySelector(
-//   '#avatar'
-// ) as HTMLInputElement | null;
+const profileUsernameInput = document.querySelector(
+  '#profile-username'
+) as HTMLInputElement | null;
+const profileEmailInput = document.querySelector(
+  '#profile-email'
+) as HTMLInputElement | null;
+const avatarInput = document.querySelector(
+  '#avatar'
+) as HTMLInputElement | null;
 
 // select profile elements from the DOM
 const usernameTarget = document.querySelector(
@@ -93,17 +93,22 @@ const login = async (): Promise<LoginUser> => {
   return loginResult;
 };
 
-// TODO: function to update user data
-/*
+// function to update user data
 const updateUserData = async (
   user: UpdateUser,
   token: string
 ): Promise<UpdateResult> => {
-  // ota mallia login funktiosta. metodi on PUT.
-  // Headereissä tarvitsee lähettää myös token
+  const options: RequestInit = {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer ' + token,
+    },
+    body: JSON.stringify(user),
+  };
 
+  return await fetchData<UpdateResult>(apiUrl + '/users', options);
 };
-*/
 
 // TODO: function to upload image
 const uploadAvatar = async (): Promise<UploadResult> => {
@@ -174,7 +179,7 @@ checkToken();
 // event listener should call login function and save token to local storage
 // then call addUserDataToDom to update the DOM with the user data
 if (!loginForm) {
-  console.error('login lomake puuttuu saatana');
+  console.error('login-lomake puuttuu');
 } else {
   loginForm.addEventListener('submit', async (evt) => {
     try {
@@ -184,17 +189,40 @@ if (!loginForm) {
       localStorage.setItem('token', loginResult.token);
       addUserDataToDom(loginResult.data);
     } catch (error) {
-      alert((error as Error).message);
+        alert((error as Error).message);
     }
   });
 }
 
-// TODO: profile form event listener
+// profile form event listener
 // event listener should call updateUserData function and update the DOM with
 // the user data by calling addUserDataToDom or checkToken
-profileForm?.addEventListener('submit', () => {});
+profileForm?.addEventListener('submit', async (evt) => {
+  evt.preventDefault();
 
-// TODO: avatar form event listener
+  try {
+    if (!profileUsernameInput || !profileEmailInput) {
+      throw new Error('Syötekentät puuttuu');
+    }
+
+    const username = profileUsernameInput.value;
+    const email = profileEmailInput.value;
+    const token = localStorage.getItem('token');
+
+    if (!token) {
+      throw new Error('Käyttäjä ei ole kirjautunut sisään');
+    }
+
+    const updateResult = await updateUserData({ username, email }, token);
+    console.log(updateResult);
+
+    await checkToken();
+  } catch (error) {
+      alert((error as Error).message);
+  }
+});
+
+// avatar form event listener
 // event listener should call uploadAvatar function and update the DOM with
 // the user data by calling addUserDataToDom or checkToken
 avatarForm?.addEventListener('submit', async (evt) => {
@@ -203,6 +231,6 @@ avatarForm?.addEventListener('submit', async (evt) => {
     await uploadAvatar();
     await checkToken();
   } catch (error) {
-    alert((error as Error).message);
+      alert((error as Error).message);
   }
 });
